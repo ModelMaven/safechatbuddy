@@ -8,7 +8,7 @@
 // Application Constants & Sandbox defaults
 const DEFAULT_CLIENT_ID = '829396024442-1g5km0cm2i935bqe7nsa5j811nck7fdu.apps.googleusercontent.com'; // Google OAuth Sandbox Client ID
 const DEFAULT_POLL_INTERVAL = 2000; // 2 seconds
-const ALLOWED_EMAILS = []; // Add emails to restrict access, e.g. ['your-email@gmail.com']. Leave empty to allow any user.
+const ALLOWED_EMAILS = ['sameersingh04302000@gmail.com', 'samsingh1770@gmail.com']; // Add emails to restrict access, e.g. ['your-email@gmail.com']. Leave empty to allow any user.
 
 // Global State
 let state = {
@@ -54,6 +54,7 @@ const els = {
   roomsListEmpty: document.getElementById('rooms-list-empty'),
   roomsList: document.getElementById('rooms-list'),
   btnSettings: document.getElementById('btn-settings'),
+  btnSidebarImportRoom: document.getElementById('btn-sidebar-import-room'),
   
   // Chat Panel
   chatPlaceholderState: document.getElementById('chat-placeholder-state'),
@@ -982,6 +983,9 @@ function setupEventListeners() {
   // Modal open triggers
   els.btnOpenCreateRoom.addEventListener('click', () => els.modalCreateRoom.showModal());
   els.btnJoinSharedRoom.addEventListener('click', () => els.modalImportRoom.showModal());
+  if (els.btnSidebarImportRoom) {
+    els.btnSidebarImportRoom.addEventListener('click', () => els.modalImportRoom.showModal());
+  }
   if (els.btnOpenInvite) {
     els.btnOpenInvite.addEventListener('click', () => els.modalInvite.showModal());
   }
