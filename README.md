@@ -52,7 +52,7 @@ To use this application, you need to set up a project in the Google Cloud Consol
 3. Go to **APIs & Services > OAuth consent screen**:
    - Choose **External** user type.
    - Set scopes to:
-     - `https://www.googleapis.com/auth/drive.file`
+     - `https://www.googleapis.com/auth/drive`
      - `openid`
      - `https://www.googleapis.com/auth/userinfo.profile`
      - `https://www.googleapis.com/auth/userinfo.email`
