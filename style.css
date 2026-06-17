@@ -436,6 +436,27 @@ code {
   position: relative;
 }
 
+/* Sidebar Backdrop Overlay for Mobile Drawer */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.sidebar-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .sidebar {
   position: fixed;
   top: 0;
@@ -1183,6 +1204,40 @@ code {
   
   .auth-card {
     padding: 24px;
+  }
+
+  /* Prevent auto-zoom on mobile browsers */
+  input {
+    font-size: 16px !important;
+  }
+  
+  /* Optimize chat header for small screens */
+  .chat-header {
+    padding: 12px 16px;
+  }
+  
+  #chat-room-title {
+    font-size: 1.05rem;
+  }
+  
+  .room-meta {
+    gap: 8px;
+  }
+  
+  .room-id-tag {
+    font-size: 0.7rem;
+  }
+  
+  .chat-header-actions {
+    gap: 6px;
+  }
+  
+  .chat-header-actions .btn {
+    padding: 8px 10px;
+  }
+  
+  .chat-header-actions .btn .btn-text {
+    display: none;
   }
 }
 
