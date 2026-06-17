@@ -207,6 +207,10 @@
                 </div>
               </div>
               
+              <div id="room-members-container" class="room-members-container" title="View Room Members">
+                <!-- Dynamically populated avatar stack -->
+              </div>
+              
               <div class="chat-header-actions">
                 <button id="btn-open-invite" class="btn btn-secondary btn-sm" title="Invite Friend to Room">
                   <i class="fa-solid fa-user-plus"></i> <span class="btn-text">Invite Friend</span>
@@ -302,6 +306,24 @@
           <button type="submit" class="btn btn-primary">Share & Invite</button>
         </div>
       </form>
+    </div>
+  </dialog>
+
+  <!-- Room Members Modal -->
+  <dialog id="modal-members" class="app-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Room Members & Presence</h2>
+        <button class="btn-icon btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="members-body" style="max-height: 50vh; overflow-y: auto;">
+        <ul id="members-list" class="members-list">
+          <!-- Dynamically populated list of members with status -->
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline btn-close-modal">Close</button>
+      </div>
     </div>
   </dialog>
 
