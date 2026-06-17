@@ -14,7 +14,7 @@ const DEFAULT_CLIENT_ID = '373979148011-8v6m5k8g4g7r3p06euhvgrn22kcrbms5.apps.go
  */
 
 // Application Constants & Sandbox defaults
-const DEFAULT_CLIENT_ID = '373979148011-8v6m5k8g4g7r3p06euhvgrn22kcrbms5.apps.googleusercontent.com'; // Google OAuth Sandbox Client ID
+const DEFAULT_CLIENT_ID = '829396024442-1g5km0cm2i935bqe7nsa5j811nck7fdu.apps.googleusercontent.com'; // Google OAuth Sandbox Client ID
 const DEFAULT_POLL_INTERVAL = 2000; // 2 seconds
 const ALLOWED_EMAILS = []; // Add emails to restrict access, e.g. ['your-email@gmail.com']. Leave empty to allow any user.
 
