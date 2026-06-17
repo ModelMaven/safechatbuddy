@@ -8,7 +8,8 @@ The entire application runs purely on the client side (deployable as a static Si
 
 ## 🚀 Key Features
 
-- **Private & Secure**: Messages are sandboxed inside a hidden `appDataFolder` on the user's Google Drive. Unreachable by other apps or developers.
+- **Private & Secure**: Messages are stored in a dedicated `DriveSync Chat` folder on your Google Drive. Only accessible to you and individuals you explicitly invite.
+- **In-App Sharing / Invites**: Invite friends using their Google email directly from the chat interface. The app automatically configures read/write permissions on Google Drive behind the scenes!
 - **Zero Backend Cost**: Complete serverless database hosting utilizing Google Drive API storage quotas.
 - **High-Performance Delta Polling**: Utilizes a lightweight HTTP metadata check (`modifiedTime`) to monitor room changes every 2 seconds without hitting Google API rate limits.
 - **Optimistic UI Updates**: Incoming and outgoing messages render instantly in the sender's UI before network operations complete.
@@ -51,7 +52,7 @@ To use this application, you need to set up a project in the Google Cloud Consol
 3. Go to **APIs & Services > OAuth consent screen**:
    - Choose **External** user type.
    - Set scopes to:
-     - `https://www.googleapis.com/auth/drive.appdata`
+     - `https://www.googleapis.com/auth/drive.file`
      - `openid`
      - `https://www.googleapis.com/auth/userinfo.profile`
      - `https://www.googleapis.com/auth/userinfo.email`
