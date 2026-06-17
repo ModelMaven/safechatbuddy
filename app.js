@@ -164,7 +164,7 @@ function initializeGis() {
   try {
     state.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: state.settings.clientId,
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+      scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       callback: async (response) => {
         if (response.error !== undefined) {
           showToast(`Authentication failed: ${response.error}`, 'error');
