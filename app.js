@@ -8,6 +8,7 @@
 // Application Constants & Sandbox defaults
 const DEFAULT_CLIENT_ID = '373979148011-8v6m5k8g4g7r3p06euhvgrn22kcrbms5.apps.googleusercontent.com'; // Google OAuth Sandbox Client ID
 const DEFAULT_POLL_INTERVAL = 2000; // 2 seconds
+const ALLOWED_EMAILS = []; // Add emails to restrict access, e.g. ['your-email@gmail.com']. Leave empty to allow any user.
 
 // Global State
 let state = {
@@ -36,6 +37,8 @@ const els = {
   authLoadingText: document.getElementById('auth-loading-text'),
   oauthClientIdInput: document.getElementById('oauth-client-id'),
   btnSaveClient: document.getElementById('btn-save-client'),
+  devClientConfig: document.getElementById('dev-client-config'),
+  linkToggleDev: document.getElementById('link-toggle-dev'),
   
   // Sidebar
   sidebar: document.getElementById('app-sidebar'),
@@ -82,6 +85,12 @@ const els = {
   settingsPollInterval: document.getElementById('settings-poll-interval'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
   btnClearCache: document.getElementById('btn-clear-cache'),
+  
+  // New Invite Elements
+  modalInvite: document.getElementById('modal-invite'),
+  formInvite: document.getElementById('form-invite'),
+  inviteEmailInput: document.getElementById('invite-email'),
+  btnOpenInvite: document.getElementById('btn-open-invite'),
   
   toastContainer: document.getElementById('toast-container')
 };
@@ -153,7 +162,7 @@ function initializeGis() {
   try {
     state.tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: state.settings.clientId,
-      scope: 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       callback: async (response) => {
         if (response.error !== undefined) {
           showToast(`Authentication failed: ${response.error}`, 'error');
@@ -251,6 +260,13 @@ async function handleSignInSuccess(isImplicit = false) {
       email: userInfo.result.email
     };
     
+    // 2.5. Check Whitelist
+    if (ALLOWED_EMAILS.length > 0 && !ALLOWED_EMAILS.includes(state.currentUser.email)) {
+      showToast('Access Denied: Your email is not whitelisted.', 'error');
+      signOut();
+      return;
+    }
+    
     // 3. Update Profile UI
     els.userName.textContent = state.currentUser.name;
     els.userEmail.textContent = state.currentUser.email;
@@ -282,17 +298,55 @@ function showScreen(screenId) {
 // GOOGLE DRIVE API INTERACTIONS
 // -------------------------------------------------------------
 
-// List Rooms from Drive appDataFolder
+// Get or create the DriveSync Chat folder in regular Drive
+async function getOrCreateAppFolder() {
+  let folderId = localStorage.getItem('drivesync_folder_id');
+  if (folderId) {
+    try {
+      await gapi.client.drive.files.get({ fileId: folderId, fields: 'id, trashed' });
+      return folderId;
+    } catch (e) {
+      localStorage.removeItem('drivesync_folder_id');
+    }
+  }
+  
+  // Search for the folder
+  const response = await gapi.client.drive.files.list({
+    q: "mimeType = 'application/vnd.google-apps.folder' and name = 'DriveSync Chat' and trashed = false",
+    fields: 'files(id)'
+  });
+  
+  const files = response.result.files || [];
+  if (files.length > 0) {
+    folderId = files[0].id;
+  } else {
+    // Create the folder
+    const createResponse = await gapi.client.drive.files.create({
+      resource: {
+        name: 'DriveSync Chat',
+        mimeType: 'application/vnd.google-apps.folder'
+      },
+      fields: 'id'
+    });
+    folderId = createResponse.result.id;
+  }
+  
+  localStorage.setItem('drivesync_folder_id', folderId);
+  return folderId;
+}
+
+// List Rooms from Drive
 async function loadRooms() {
   els.roomsListLoading.classList.remove('hidden');
   els.roomsListEmpty.classList.add('hidden');
   els.roomsList.innerHTML = '';
   
   try {
-    // Queries the appDataFolder for JSON files matching 'chat_room_' prefix
+    const folderId = await getOrCreateAppFolder();
+    
+    // Queries the folder for JSON files matching 'chat_room_' prefix
     const response = await gapi.client.drive.files.list({
-      spaces: 'appDataFolder',
-      q: "mimeType = 'application/json' and name contains 'chat_room_'",
+      q: `'${folderId}' in parents and mimeType = 'application/json' and name contains 'chat_room_' and trashed = false`,
       fields: 'files(id, name, modifiedTime, createdTime)',
       orderBy: 'modifiedTime desc'
     });
@@ -376,11 +430,12 @@ async function createRoom(roomName) {
   };
   
   try {
+    const folderId = await getOrCreateAppFolder();
     // Step 1: Create metadata entry in GDrive
     const metaResponse = await gapi.client.drive.files.create({
       resource: {
         name: `chat_room_${roomId}.json`,
-        parents: ['appDataFolder'],
+        parents: [folderId],
         mimeType: 'application/json'
       },
       fields: 'id'
@@ -460,6 +515,34 @@ async function importRoom(fileId) {
   } catch (err) {
     showToast('Could not import room. Make sure the file exists and you have shared permissions.', 'error');
     console.error(err);
+  }
+}
+
+// Share Room File / Invite a Friend
+async function inviteMember(email) {
+  if (!state.activeRoom) {
+    showToast('No active room selected', 'error');
+    return;
+  }
+  
+  updateSyncStatus('syncing');
+  try {
+    await gapi.client.drive.permissions.create({
+      fileId: state.activeRoom.fileId,
+      resource: {
+        role: 'writer',
+        type: 'user',
+        emailAddress: email
+      },
+      sendNotificationEmail: true
+    });
+    
+    showToast(`Successfully shared room and invited ${email}!`);
+  } catch (err) {
+    console.error('Failed to share room file', err);
+    showToast('Failed to invite member. Make sure the email is valid.', 'error');
+  } finally {
+    updateSyncStatus('idle');
   }
 }
 
@@ -870,6 +953,14 @@ function setupEventListeners() {
   els.btnLogin.addEventListener('click', signIn);
   els.btnLogout.addEventListener('click', signOut);
   
+  // Developer configuration toggle
+  if (els.linkToggleDev) {
+    els.linkToggleDev.addEventListener('click', (e) => {
+      e.preventDefault();
+      els.devClientConfig.classList.toggle('hidden');
+    });
+  }
+  
   els.btnSaveClient.addEventListener('click', () => {
     const raw = els.oauthClientIdInput.value.trim();
     if (raw) {
@@ -888,6 +979,9 @@ function setupEventListeners() {
   // Modal open triggers
   els.btnOpenCreateRoom.addEventListener('click', () => els.modalCreateRoom.showModal());
   els.btnJoinSharedRoom.addEventListener('click', () => els.modalImportRoom.showModal());
+  if (els.btnOpenInvite) {
+    els.btnOpenInvite.addEventListener('click', () => els.modalInvite.showModal());
+  }
   els.btnSettings.addEventListener('click', () => {
     els.settingsClientId.value = state.settings.clientId;
     els.settingsPollInterval.value = state.settings.pollInterval;
@@ -912,6 +1006,19 @@ function setupEventListeners() {
       await createRoom(name);
     }
   });
+  
+  // Invite Member Form Submit
+  if (els.formInvite) {
+    els.formInvite.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = els.inviteEmailInput.value.trim();
+      if (email) {
+        els.modalInvite.close();
+        els.inviteEmailInput.value = '';
+        await inviteMember(email);
+      }
+    });
+  }
   
   // Import Room Form Submit
   els.formImportRoom.addEventListener('submit', async (e) => {
