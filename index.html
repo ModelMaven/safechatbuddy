@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
   <meta name="description" content="A decentralized, serverless, live-syncing Web Chat Application using Google Drive as the database. Zero backend cost, total data sovereignty.">
   <title>DriveSync Chat - Decentralized & Serverless</title>
   
@@ -28,6 +28,9 @@
     
     <!-- Toast Notification System -->
     <div id="toast-container" class="toast-container"></div>
+
+    <!-- Sidebar Drawer Backdrop Overlay for Mobile -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
 
     <!-- 1. LANDING & OAUTH LOGIN SCREEN -->
     <section id="auth-screen" class="screen active">
@@ -206,13 +209,13 @@
               
               <div class="chat-header-actions">
                 <button id="btn-open-invite" class="btn btn-secondary btn-sm" title="Invite Friend to Room">
-                  <i class="fa-solid fa-user-plus"></i> Invite Friend
+                  <i class="fa-solid fa-user-plus"></i> <span class="btn-text">Invite Friend</span>
                 </button>
                 <button id="btn-join-shared-room" class="btn btn-secondary btn-sm" title="Import Room using File ID">
-                  <i class="fa-solid fa-file-import"></i> Import Room
+                  <i class="fa-solid fa-file-import"></i> <span class="btn-text">Import Room</span>
                 </button>
                 <button id="btn-delete-room" class="btn btn-danger btn-sm" title="Delete Room from Drive">
-                  <i class="fa-regular fa-trash-can"></i> Delete Room
+                  <i class="fa-regular fa-trash-can"></i> <span class="btn-text">Delete Room</span>
                 </button>
               </div>
             </div>
