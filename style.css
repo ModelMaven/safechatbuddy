@@ -257,11 +257,15 @@ code {
 }
 
 #auth-screen {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 20px;
   overflow-y: auto;
+}
+
+#auth-screen.active {
+  display: flex;
 }
 
 .auth-card {
@@ -422,21 +426,33 @@ code {
 }
 
 .workspace-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
+  display: block;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  position: relative;
 }
 
 .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 320px;
+  max-width: 85vw;
+  height: 100vh;
   background-color: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  height: 100%;
   overflow: hidden;
-  z-index: 10;
+  z-index: 1000;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-lg);
+}
+
+.sidebar.mobile-open {
+  transform: translateX(0);
 }
 
 .sidebar-header {
@@ -1140,66 +1156,9 @@ code {
   .mobile-only {
     display: flex !important;
   }
-  
-  .workspace-layout {
-    grid-template-columns: 1fr; /* Sidebar hidden / overlaid */
-  }
-  
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 280px;
-    height: 100vh;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: var(--shadow-lg);
-  }
-  
-  .sidebar.mobile-open {
-    transform: translateX(0);
-  }
-  
-  .chat-panel {
-    width: 100vw;
-  }
 
   .chat-placeholder-state {
-    padding-top: 80px;
-  }
-  
-  .chat-header {
-    display: none; /* Replaced by mobile-header */
-  }
-  
-  .mobile-header {
-    background-color: var(--bg-sidebar);
-    border-bottom: 1px solid var(--border-color);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 9;
-    height: 56px;
-  }
-  
-  .mobile-room-info {
-    flex-grow: 1;
-    text-align: center;
-    padding: 0 10px;
-    min-width: 0;
-  }
-  
-  .mobile-room-info h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
-  .chat-active-state {
-    padding-top: 0;
+    padding-top: 40px;
   }
 
   .chat-messages-container {
@@ -1218,4 +1177,16 @@ code {
   .auth-card {
     padding: 24px;
   }
+}
+
+.dev-toggle-link {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: var(--transition-smooth);
+  margin-top: 10px;
+  align-self: center;
+}
+.dev-toggle-link:hover {
+  color: var(--primary-hover);
 }
