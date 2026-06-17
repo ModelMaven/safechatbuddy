@@ -22,6 +22,7 @@ let state = {
   messages: [],
   pollIntervalId: null,
   isSyncing: false,
+  lastPresenceWriteTime: 0,
   settings: {
     clientId: DEFAULT_CLIENT_ID,
     pollInterval: DEFAULT_POLL_INTERVAL
@@ -94,6 +95,11 @@ const els = {
   formInvite: document.getElementById('form-invite'),
   inviteEmailInput: document.getElementById('invite-email'),
   btnOpenInvite: document.getElementById('btn-open-invite'),
+  
+  // Presence Elements
+  roomMembersContainer: document.getElementById('room-members-container'),
+  modalMembers: document.getElementById('modal-members'),
+  membersList: document.getElementById('members-list'),
   
   toastContainer: document.getElementById('toast-container')
 };
@@ -429,6 +435,7 @@ async function createRoom(roomName) {
     room_name: roomName,
     created_at: new Date().toISOString(),
     last_updated_timestamp: new Date().toISOString(),
+    presence: {},
     messages: []
   };
   
@@ -635,6 +642,9 @@ async function selectRoom(room) {
     
     // Save metadata
     state.messages = roomData.messages.map(m => ({ ...m, status: 'sent' }));
+    state.activeRoom.presence = roomData.presence || {};
+    
+    renderPresence();
     
     // Sync current modified time
     const metaResponse = await gapi.client.drive.files.get({
@@ -648,6 +658,10 @@ async function selectRoom(room) {
     
     // Start live-polling synchronization loop
     startPolling();
+    
+    // Force write our own presence status immediately on entry
+    state.lastPresenceWriteTime = Date.now();
+    await updatePresence(true);
   } catch (err) {
     showToast('Failed to load room messages', 'error');
     console.error(err);
@@ -684,9 +698,17 @@ function startPolling() {
         const roomData = await fetchRoomData(state.activeRoom.fileId);
         state.activeRoom.modifiedTime = remoteModifiedTime;
         
-        // 3. Merge message streams
+        // 3. Merge message and presence streams
         mergeMessages(roomData.messages);
+        mergePresence(roomData.presence);
         renderMessages();
+      }
+      
+      // 4. Periodically update our own presence if active, or just recalculate status displays
+      if (document.hasFocus()) {
+        await updatePresence(false);
+      } else {
+        renderPresence();
       }
       
       updateSyncStatus('idle');
@@ -746,6 +768,223 @@ function mergeMessages(remoteMessages) {
   
   // 3. Sort chronologically
   state.messages = Array.from(map.values()).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
+function mergePresence(remotePresence) {
+  if (!state.activeRoom) return;
+  if (!state.activeRoom.presence) {
+    state.activeRoom.presence = {};
+  }
+  
+  if (remotePresence) {
+    for (const userId in remotePresence) {
+      const remoteUser = remotePresence[userId];
+      const localUser = state.activeRoom.presence[userId];
+      
+      if (!localUser || new Date(remoteUser.last_active) > new Date(localUser.last_active)) {
+        state.activeRoom.presence[userId] = remoteUser;
+      }
+    }
+  }
+  
+  if (state.currentUser) {
+    state.activeRoom.presence[state.currentUser.id] = {
+      name: state.currentUser.name,
+      email: state.currentUser.email,
+      avatar: state.currentUser.avatar,
+      last_active: new Date().toISOString()
+    };
+  }
+}
+
+// Write / Update Presence to Drive
+async function updatePresence(forceWrite = false) {
+  if (!state.activeRoom || !state.currentUser) return;
+  
+  const now = Date.now();
+  const timeSinceLastWrite = now - state.lastPresenceWriteTime;
+  
+  if (!forceWrite && timeSinceLastWrite < 60000) {
+    if (!state.activeRoom.presence) state.activeRoom.presence = {};
+    state.activeRoom.presence[state.currentUser.id] = {
+      name: state.currentUser.name,
+      email: state.currentUser.email,
+      avatar: state.currentUser.avatar,
+      last_active: new Date().toISOString()
+    };
+    renderPresence();
+    return;
+  }
+  
+  try {
+    state.lastPresenceWriteTime = now;
+    
+    const remoteData = await fetchRoomData(state.activeRoom.fileId);
+    
+    mergeMessages(remoteData.messages);
+    mergePresence(remoteData.presence);
+    
+    const sanitizedMessages = state.messages.map(m => {
+      const { status, ...clean } = m;
+      return clean;
+    });
+    
+    const updatedContent = {
+      room_id: remoteData.room_id,
+      room_name: remoteData.room_name,
+      created_at: remoteData.created_at,
+      last_updated_timestamp: new Date().toISOString(),
+      presence: state.activeRoom.presence,
+      messages: sanitizedMessages
+    };
+    
+    await updateRoomData(state.activeRoom.fileId, updatedContent);
+    
+    const response = await gapi.client.drive.files.get({
+      fileId: state.activeRoom.fileId,
+      fields: 'modifiedTime'
+    });
+    state.activeRoom.modifiedTime = response.result.modifiedTime;
+    
+    renderPresence();
+  } catch (err) {
+    console.warn('Failed to write presence update to Google Drive', err);
+  }
+}
+
+function renderPresence() {
+  if (!state.activeRoom || !els.roomMembersContainer) return;
+  
+  const presence = state.activeRoom.presence || {};
+  const userIds = Object.keys(presence);
+  
+  if (userIds.length === 0) {
+    els.roomMembersContainer.innerHTML = `
+      <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">No member data</span>
+    `;
+    return;
+  }
+  
+  const now = new Date();
+  const sortedUserIds = userIds.sort((a, b) => {
+    const isAOnline = (now - new Date(presence[a].last_active)) < 90000;
+    const isBOnline = (now - new Date(presence[b].last_active)) < 90000;
+    
+    if (isAOnline && !isBOnline) return -1;
+    if (!isAOnline && isBOnline) return 1;
+    return presence[a].name.localeCompare(presence[b].name);
+  });
+  
+  const onlineCount = userIds.filter(id => (now - new Date(presence[id].last_active)) < 90000).length;
+  
+  const maxAvatars = 4;
+  let avatarsHtml = '';
+  
+  sortedUserIds.slice(0, maxAvatars).forEach(id => {
+    const user = presence[id];
+    const isOnline = (now - new Date(user.last_active)) < 90000;
+    const statusText = isOnline ? 'Online' : 'Offline';
+    avatarsHtml += `
+      <img class="member-avatar-stacked" 
+           src="${user.avatar || 'https://lh3.googleusercontent.com/a/default-user=s88-c'}" 
+           title="${escapeHtml(user.name)} (${statusText})"
+           style="${isOnline ? 'border-color: var(--success);' : ''}">
+    `;
+  });
+  
+  let extraIndicator = '';
+  if (userIds.length > maxAvatars) {
+    extraIndicator = `
+      <div class="member-avatar-stacked" style="display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background-color: var(--secondary); margin-left: -8px;">
+        +${userIds.length - maxAvatars}
+      </div>
+    `;
+  }
+  
+  els.roomMembersContainer.innerHTML = `
+    <div style="display: flex; align-items: center;">
+      ${avatarsHtml}
+      ${extraIndicator}
+    </div>
+    <span style="font-size: 0.8rem; margin-left: 8px; font-weight: 600; color: var(--text-muted);">
+      ${onlineCount}/${userIds.length} Online
+    </span>
+  `;
+}
+
+function populateMembersModal() {
+  if (!state.activeRoom || !els.membersList) return;
+  
+  const presence = state.activeRoom.presence || {};
+  const userIds = Object.keys(presence);
+  
+  els.membersList.innerHTML = '';
+  
+  if (userIds.length === 0) {
+    els.membersList.innerHTML = `<li style="text-align: center; color: var(--text-muted); padding: 20px;">No member data available.</li>`;
+    return;
+  }
+  
+  const now = new Date();
+  
+  const sortedUserIds = userIds.sort((a, b) => {
+    const isAOnline = (now - new Date(presence[a].last_active)) < 90000;
+    const isBOnline = (now - new Date(presence[b].last_active)) < 90000;
+    
+    if (isAOnline && !isBOnline) return -1;
+    if (!isAOnline && isBOnline) return 1;
+    return presence[a].name.localeCompare(presence[b].name);
+  });
+  
+  sortedUserIds.forEach(id => {
+    const user = presence[id];
+    const isOnline = (now - new Date(user.last_active)) < 90000;
+    const statusClass = isOnline ? 'online' : 'offline';
+    const statusText = isOnline ? 'Online' : `Offline (${formatRelativeTime(user.last_active)})`;
+    
+    const li = document.createElement('li');
+    li.className = 'member-item-detail';
+    li.innerHTML = `
+      <div class="member-detail-left">
+        <div class="member-detail-avatar-container">
+          <img class="member-detail-avatar" src="${user.avatar || 'https://lh3.googleusercontent.com/a/default-user=s88-c'}" alt="${escapeHtml(user.name)}">
+          <div class="member-detail-status-dot ${isOnline ? 'online' : ''}"></div>
+        </div>
+        <div class="member-detail-info">
+          <div class="member-detail-name">
+            ${escapeHtml(user.name)} 
+            ${id === state.currentUser?.id ? '<span style="font-size: 0.75rem; opacity: 0.6; font-weight: normal;">(You)</span>' : ''}
+          </div>
+          <div class="member-detail-email">${escapeHtml(user.email)}</div>
+        </div>
+      </div>
+      <div class="member-detail-status-text ${statusClass}">
+        ${statusText}
+      </div>
+    `;
+    els.membersList.appendChild(li);
+  });
+}
+
+function formatRelativeTime(dateString) {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  
+  if (diffMs < 0) return 'Just now';
+  
+  const diffSecs = Math.floor(diffMs / 1000);
+  if (diffSecs < 60) return 'Just now';
+  
+  const diffMins = Math.floor(diffSecs / 60);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
 }
 
 // -------------------------------------------------------------
@@ -910,6 +1149,8 @@ async function sendMessage(event) {
     
     // Merge remote list with local list
     mergeMessages(remoteData.messages);
+    mergePresence(remoteData.presence);
+    state.lastPresenceWriteTime = Date.now();
     
     // Update state.messages array item for this message to sent (client-side status)
     const targetMsg = state.messages.find(m => m.msg_id === localMsgId);
@@ -926,6 +1167,7 @@ async function sendMessage(event) {
       room_name: remoteData.room_name,
       created_at: remoteData.created_at,
       last_updated_timestamp: new Date().toISOString(),
+      presence: state.activeRoom.presence,
       messages: sanitizedMessages
     };
     
@@ -1096,6 +1338,15 @@ function setupEventListeners() {
       showToast('Room File ID copied to clipboard');
     }
   });
+  // Open Room Members Modal
+  if (els.roomMembersContainer) {
+    els.roomMembersContainer.addEventListener('click', () => {
+      if (state.activeRoom) {
+        populateMembersModal();
+        if (els.modalMembers) els.modalMembers.showModal();
+      }
+    });
+  }
   
   // Submit chat message
   els.chatInputForm.addEventListener('submit', sendMessage);
