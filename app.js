@@ -340,9 +340,15 @@ async function fetchRoomData(fileId) {
     alt: 'media'
   });
   
-  let data = response.result;
+  // GAPI client media download content is returned in response.body, or sometimes response.result
+  let data = response.result || response.body;
+  
   if (typeof data === 'string') {
-    data = JSON.parse(data);
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      console.error('Failed to parse room data JSON:', data, e);
+    }
   }
   return data;
 }
