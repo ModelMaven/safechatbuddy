@@ -1114,6 +1114,133 @@ code {
 }
 
 
+
+/* -------------------------------------------------------------
+   ROOM MEMBERS & PRESENCE STYLING
+   ------------------------------------------------------------- */
+.room-members-container {
+  display: flex;
+  align-items: center;
+  margin-left: 14px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--border-radius-md);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  transition: var(--transition-smooth);
+  user-select: none;
+}
+.room-members-container:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-glowing);
+}
+.member-avatar-stacked {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--border-radius-circle);
+  border: 2px solid var(--bg-dark);
+  object-fit: cover;
+  margin-left: -8px;
+  transition: var(--transition-smooth);
+  background-color: var(--secondary);
+}
+.member-avatar-stacked:first-child {
+  margin-left: 0;
+}
+.member-avatar-stacked:hover {
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+.members-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 0;
+}
+.member-item-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--border-radius-md);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  transition: var(--transition-smooth);
+}
+.member-item-detail:hover {
+  background-color: var(--surface-hover);
+}
+.member-detail-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.member-detail-avatar-container {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+.member-detail-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--border-radius-circle);
+  object-fit: cover;
+  border: 1.5px solid var(--border-color);
+}
+.member-detail-status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--border-radius-circle);
+  border: 2px solid var(--surface-opaque);
+  background-color: #9ca3af;
+}
+.member-detail-status-dot.online {
+  background-color: var(--success);
+  box-shadow: 0 0 6px var(--success);
+}
+.member-detail-info {
+  min-width: 0;
+}
+.member-detail-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-detail-email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-detail-status-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+  background-color: rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+.member-detail-status-text.online {
+  color: var(--success);
+  background-color: rgba(16, 185, 129, 0.1);
+}
+.member-detail-status-text.offline {
+  color: var(--text-muted);
+}
+
+
 /* -------------------------------------------------------------
    TOAST NOTIFICATION SYSTEM
    ------------------------------------------------------------- */
@@ -1238,6 +1365,19 @@ code {
   
   .chat-header-actions .btn .btn-text {
     display: none;
+  }
+  
+  /* Extra small mobile screen adjustments */
+  @media (max-width: 480px) {
+    .room-members-container {
+      margin-left: 6px;
+      padding: 4px 6px;
+    }
+    .member-avatar-stacked {
+      width: 22px;
+      height: 22px;
+      margin-left: -6px;
+    }
   }
 }
 
