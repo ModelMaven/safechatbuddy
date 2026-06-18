@@ -30,9 +30,6 @@ The entire application runs purely on the client side (deployable as a static Si
 ## 📂 File Structure
 
 ```
-├── .github/
-│   └── workflows/
-│       └── deploy.yml       # GitHub Actions deploy pipeline
 ├── index.html               # Main application HTML structure
 ├── style.css                # Custom glassmorphic dark-theme styling
 ├── app.js                   # Client side controller & GDrive sync engine
