@@ -757,11 +757,11 @@ function mergeMessages(remoteMessages) {
     map.set(m.msg_id, { ...m, status: 'sent' });
   });
   
-  // 2. Overlay local cached state (preserving sending or error states)
+  // 2. Overlay local cached state (preserving sending, editing, or error states)
   state.messages.forEach(m => {
     if (!map.has(m.msg_id)) {
       map.set(m.msg_id, m);
-    } else if (m.status === 'error') {
+    } else if (m.status === 'error' || m.status === 'editing' || m.status === 'sending') {
       map.set(m.msg_id, m);
     }
   });
@@ -987,6 +987,107 @@ function formatRelativeTime(dateString) {
   return `${diffDays}d ago`;
 }
 
+// Render Inline Message Editor UI
+function renderInlineEditor(msg) {
+  return `
+    <div style="display: flex; flex-direction: column; width: 100%;">
+      <textarea class="edit-message-input" id="edit-input-${msg.msg_id}" maxlength="2000">${escapeHtml(msg.content)}</textarea>
+      <div class="edit-msg-actions">
+        <button class="btn btn-outline btn-sm btn-cancel-edit" data-msg-id="${msg.msg_id}">Cancel</button>
+        <button class="btn btn-primary btn-sm btn-save-edit" data-msg-id="${msg.msg_id}">Save</button>
+      </div>
+    </div>
+  `;
+}
+
+// Set active message state to editing
+function startEditingMessage(msgId) {
+  const targetMsg = state.messages.find(m => m.msg_id === msgId);
+  if (targetMsg) {
+    targetMsg.status = 'editing';
+    renderMessages();
+  }
+}
+
+// Cancel editing and restore message view
+function cancelEditingMessage(msgId) {
+  const targetMsg = state.messages.find(m => m.msg_id === msgId);
+  if (targetMsg) {
+    targetMsg.status = 'sent';
+    renderMessages();
+  }
+}
+
+// Save edited message to GDrive
+async function saveEditedMessage(msgId, newContent) {
+  const targetMsg = state.messages.find(m => m.msg_id === msgId);
+  if (!targetMsg) return;
+  
+  const originalContent = targetMsg.content;
+  
+  // Update locally (optimistic UI update)
+  targetMsg.content = newContent;
+  targetMsg.is_edited = true;
+  targetMsg.status = 'sending';
+  renderMessages();
+  
+  try {
+    updateSyncStatus('syncing');
+    
+    // Fetch latest room contents to prevent race condition overrides
+    const remoteData = await fetchRoomData(state.activeRoom.fileId);
+    
+    // Merge remote list with local list
+    mergeMessages(remoteData.messages);
+    mergePresence(remoteData.presence);
+    state.lastPresenceWriteTime = Date.now();
+    
+    // Find the message in the merged list and update it
+    const msgInMerged = state.messages.find(m => m.msg_id === msgId);
+    if (msgInMerged) {
+      msgInMerged.content = newContent;
+      msgInMerged.is_edited = true;
+      msgInMerged.status = 'sent';
+    }
+    
+    // Map list to clean storage format (removing local state helpers like 'status')
+    const sanitizedMessages = state.messages.map(m => {
+      const { status, ...clean } = m;
+      return clean;
+    });
+    
+    const updatedContent = {
+      room_id: remoteData.room_id,
+      room_name: remoteData.room_name,
+      created_at: remoteData.created_at,
+      last_updated_timestamp: new Date().toISOString(),
+      presence: state.activeRoom.presence,
+      messages: sanitizedMessages
+    };
+    
+    // Write back to Drive
+    await updateRoomData(state.activeRoom.fileId, updatedContent);
+    
+    // Update local modified time immediately to avoid redundant delta poll fetches
+    const response = await gapi.client.drive.files.get({
+      fileId: state.activeRoom.fileId,
+      fields: 'modifiedTime'
+    });
+    state.activeRoom.modifiedTime = response.result.modifiedTime;
+    
+    renderMessages();
+    updateSyncStatus('idle');
+  } catch (err) {
+    console.error('Failed to save edited message', err);
+    // Revert local edit state
+    targetMsg.content = originalContent;
+    targetMsg.status = 'error';
+    renderMessages();
+    showToast('Failed to save edit', 'error');
+    updateSyncStatus('offline');
+  }
+}
+
 // -------------------------------------------------------------
 // UI RENDERING HELPERS
 // -------------------------------------------------------------
@@ -1059,21 +1160,59 @@ function renderMessages() {
       }
     }
     
+    const isEditedMarkup = msg.is_edited ? `<span class="msg-edited" style="font-size: 0.65rem; opacity: 0.5; font-style: italic; margin-left: 4px;">(edited)</span>` : '';
+    const editBtnMarkup = isSelf && msg.status !== 'sending' && msg.status !== 'error' && msg.status !== 'editing'
+      ? `<button class="btn-edit-msg" data-msg-id="${msg.msg_id}" title="Edit Message"><i class="fa-solid fa-pen"></i></button>`
+      : '';
+    
+    const bubbleClass = msg.status === 'editing' ? 'msg-bubble editing' : 'msg-bubble';
+    
     div.innerHTML = `
       <img src="${msg.sender_avatar || 'https://lh3.googleusercontent.com/a/default-user=s88-c'}" alt="${escapeHtml(msg.sender_name)}" class="msg-avatar">
       <div class="msg-content-wrapper">
         <div class="msg-info">
           <span class="msg-sender">${escapeHtml(msg.sender_name)}</span>
-          <span class="msg-time">${time}</span>
+          <span class="msg-time">${time}${isEditedMarkup}</span>
+          ${editBtnMarkup}
         </div>
-        <div class="msg-bubble">
-          ${formattedContent}
+        <div class="${bubbleClass}">
+          ${msg.status === 'editing' ? renderInlineEditor(msg) : formattedContent}
         </div>
         ${statusMarkup}
       </div>
     `;
     
     container.appendChild(div);
+  });
+  
+  // Bind events for edit buttons
+  container.querySelectorAll('.btn-edit-msg').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const msgId = btn.dataset.msgId;
+      startEditingMessage(msgId);
+    });
+  });
+  
+  // Bind events for cancel edit buttons
+  container.querySelectorAll('.btn-cancel-edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const msgId = btn.dataset.msgId;
+      cancelEditingMessage(msgId);
+    });
+  });
+  
+  // Bind events for save edit buttons
+  container.querySelectorAll('.btn-save-edit').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const msgId = btn.dataset.msgId;
+      const input = document.getElementById(`edit-input-${msgId}`);
+      if (input) {
+        const newContent = input.value.trim();
+        if (newContent) {
+          saveEditedMessage(msgId, newContent);
+        }
+      }
+    });
   });
   
   // Auto-scroll to bottom if user was already at the bottom or if it is our message
