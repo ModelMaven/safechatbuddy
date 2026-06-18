@@ -8,7 +8,7 @@
 // Application Constants & Sandbox defaults
 const DEFAULT_CLIENT_ID = '829396024442-1g5km0cm2i935bqe7nsa5j811nck7fdu.apps.googleusercontent.com'; // Google OAuth Sandbox Client ID
 const DEFAULT_POLL_INTERVAL = 2000; // 2 seconds
-const ALLOWED_EMAILS = ['sameersingh04302000@gmail.com', 'samsingh1770@gmail.com','ss3377242@gmail.com']; // Add emails to restrict access, e.g. ['your-email@gmail.com']. Leave empty to allow any user.
+const ALLOWED_EMAILS = []; // Add emails to restrict access, e.g. ['your-email@gmail.com']. Leave empty to allow any user.
 
 // Global State
 let state = {
