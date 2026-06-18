@@ -923,11 +923,66 @@ code {
   word-break: break-word;
   position: relative;
 }
-
 .message-item.self .msg-bubble {
   background: linear-gradient(135deg, hsl(250, 45%, 22%), hsl(250, 40%, 18%));
   border-color: rgba(124, 93, 250, 0.2);
   border-radius: var(--border-radius-md) 0 var(--border-radius-md) var(--border-radius-md);
+}
+
+/* Inline Message Editing Styling */
+.btn-edit-msg {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.3;
+  transition: var(--transition-smooth);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-edit-msg:hover {
+  opacity: 1;
+  color: var(--primary-hover);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.message-item:hover .btn-edit-msg {
+  opacity: 0.8;
+}
+
+.msg-bubble.editing {
+  padding: 10px;
+  min-width: 260px;
+}
+.edit-message-input {
+  width: 100%;
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: var(--border-radius-md);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 50px;
+  margin-bottom: 8px;
+  outline: none;
+}
+.edit-message-input:focus {
+  border-color: var(--primary);
+}
+.edit-msg-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.edit-msg-actions .btn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: var(--border-radius-sm);
 }
 
 /* Links parsing in bubble */
@@ -1121,9 +1176,8 @@ code {
 .room-members-container {
   display: flex;
   align-items: center;
-  margin-left: 14px;
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: var(--border-radius-md);
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
